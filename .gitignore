@@ -1,0 +1,11 @@
+
+*.csv
+*.json
+*.CPG
+*.shp
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.xml
+*.shx
