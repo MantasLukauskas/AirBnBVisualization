@@ -756,7 +756,7 @@ summary_Model3
 
 pred <- predict(Model3, newdata = test)
 rmse(pred, test$price)
-
+mape(pred, test$price)
 
 
 
@@ -905,6 +905,7 @@ library(Metrics)
 
 pred <- predict(optimal_tree, newdata = test)
 rmse(pred, test$price)
+mape(pred, test$price)
 
 
 
