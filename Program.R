@@ -702,11 +702,21 @@ train <- AmsterdamNewest_filtered_data %>% sample_frac(.7) %>% filter(price > 0)
 test  <- anti_join(AmsterdamNewest_filtered_data, train, by = 'id') %>% filter(price > 0)
 
 
+response = "price"
+predictors = c("neighbourhood",
+               "latitude", "longitude", "room_type","minimum_nights","number_of_reviews",  "availability_365",
+               "reviews_per_month","calculated_host_listings_count")
+
+
+no_na <- na.omit(train[c(predictors, response)])
+
+no_na_test <- na.omit(test[c(predictors, response)])
 
 
 
-Model1<- lm (price ~ neighbourhood + latitude + longitude + room_type + minimum_nights  + number_of_reviews + reviews_per_month + calculated_host_listings_count +
-                        availability_365, data = train)
+Model1<- lm (price ~ neighbourhood + latitude + longitude + room_type + minimum_nights  + 
+               number_of_reviews + reviews_per_month + calculated_host_listings_count +
+                        availability_365, data = no_na)
 
 summary_Model1 <- summary(Model1)
 mse_1 <- summary_Model1$sigma^2
@@ -718,17 +728,24 @@ summary_Model1
 par(mfrow=c(2,2)) 
 plot(Model1)
 
+pred <- predict(Model1, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
+
+
+pred[,1]
 
 
 
 
-null <- lm(price~1, data = train)
+
+null <- lm(price~1, data = no_na)
 full <- lm(price ~ neighbourhood + latitude + longitude + room_type + minimum_nights  + number_of_reviews + 
-             calculated_host_listings_count + availability_365, data = train)
+             calculated_host_listings_count + availability_365, data = no_na)
 step(null, scope =list(lower=null, upper= full), direction = "both")
 Model2 <- lm(formula = price ~ room_type + neighbourhood + availability_365 + 
                        calculated_host_listings_count + number_of_reviews + longitude + 
-                       minimum_nights, data = train, nbest = 2, nvmax = 9)
+                       minimum_nights, data = no_na, nbest = 2, nvmax = 9)
 summary_Model2 <- summary(Model2)
 mse_2 <- summary_Model2$sigma^2
 r_sq_2 <-summary_Model2$r.squared
@@ -736,12 +753,17 @@ adj_r_sq_2 <- summary_Model2$adj.r.squared
 summary_Model2
 
 
+pred <- predict(Model2, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
 
 
 
-null <- lm(price~1, data = train)
+
+
+null <- lm(price~1, data = no_na)
 full <- lm(price ~ neighbourhood + latitude + longitude + room_type + minimum_nights  + number_of_reviews + 
-             calculated_host_listings_count + availability_365, data = train)
+             calculated_host_listings_count + availability_365, data = no_na)
 n=dim(train[1])
 step(null, scope =list(lower=null, upper= full), direction = "both")
 Model3 <- lm(formula = price ~ room_type + neighbourhood + availability_365 + 
@@ -754,12 +776,14 @@ adj_r_sq_3 <- summary_Model3$adj.r.squared
 summary_Model3
 
 
-pred <- predict(Model3, newdata = test)
-rmse(pred, test$price)
-mape(pred, test$price)
+pred <- predict(Model3, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
 
 
+t(pred)[1,]
 
+test$price
 
 
 
@@ -892,9 +916,9 @@ hyper_grid %>%
   top_n(-5, wt = error)
 
 optimal_tree <- rpart(
-  formula = price ~ neighbourhood + latitude + longitude + room_type + minimum_nights  + number_of_reviews + 
+  formula = price ~  latitude + longitude + room_type + minimum_nights  + number_of_reviews + 
     calculated_host_listings_count + availability_365,
-  data    = train,
+  data    = no_na,
   method  = "anova",
   control = list(minsplit = 16, maxdepth = 14, cp = 0.01)
 )
@@ -903,15 +927,201 @@ rpart.plot(optimal_tree)
 
 library(Metrics)
 
-pred <- predict(optimal_tree, newdata = test)
-rmse(pred, test$price)
-mape(pred, test$price)
+pred <- predict(optimal_tree, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
 
 
 
 
 
 
+listings
+
+temp <- read.csv("listings.csv")
+
+temp$price = as.numeric(gsub("\\$", "", temp$price))
+temp$host_response_rate = as.numeric(gsub("\\%", "", temp$host_response_rate))
+temp$host_acceptance_rate = as.numeric(gsub("\\%", "", temp$host_acceptance_rate))
+
+
+temp_filtered_data <- temp
+
+temp_filtered_data <- temp %>% 
+  filter(price < quantile(temp$price, 0.9) & price > quantile(temp$price, 0.1))
+
+
+train <- temp_filtered_data %>% sample_frac(.7) %>% filter(price > 0)
+test  <- anti_join(temp_filtered_data, train, by = 'id') %>% filter(price > 0)
+
+response = "price"
+predictors = c("host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","neighbourhood_cleansed",
+               "latitude", "longitude", "room_type", "accommodates", "bedrooms", "beds", "minimum_nights", 
+               "maximum_nights", "has_availability", "availability_30", "availability_60", "availability_90", "availability_365",
+               "review_scores_rating", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_checkin", "review_scores_communication",
+               "review_scores_location", "review_scores_value", "reviews_per_month")
+
+
+no_na <- na.omit(train[c(predictors, response)])
+
+no_na_test <- na.omit(test[c(predictors, response)])
+
+
+
+Model1<- lm (price ~ host_response_time + host_response_rate + host_acceptance_rate + host_is_superhost +
+               neighbourhood_cleansed + latitude + longitude + room_type + accommodates + bedrooms + beds + minimum_nights + 
+               maximum_nights + has_availability + availability_30 + availability_60 + availability_90 + availability_365 +
+               review_scores_rating + review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication +
+               review_scores_location + review_scores_value + reviews_per_month, data = no_na)
+
+summary_Model1 <- summary(Model1)
+mse_1 <- summary_Model1$sigma^2
+r_sq_1 <- summary_Model1$r.squared
+adj_r_sq_1 <- summary_Model1$adj.r.squared
+
+summary_Model1
+
+par(mfrow=c(2,2)) 
+plot(Model1)
+
+
+pred <- predict(Model1, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
+
+
+
+
+
+null <- lm(price~1, data = no_na)
+full <- lm(price ~ host_response_time + host_response_rate + host_acceptance_rate + host_is_superhost +
+             neighbourhood_cleansed + latitude + longitude + room_type + accommodates + bedrooms + beds + minimum_nights + 
+             maximum_nights + has_availability + availability_30 + availability_60 + availability_90 + availability_365 +
+             review_scores_rating + review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication +
+             review_scores_location + review_scores_value + reviews_per_month, data = no_na)
+step(null, scope =list(lower=null, upper= full), direction = "both")
+Model2 <- lm(formula = price ~ accommodates + room_type + neighbourhood_cleansed + 
+               bedrooms + reviews_per_month + host_acceptance_rate + host_response_time + 
+               availability_365 + host_response_rate + review_scores_checkin + 
+               review_scores_rating + review_scores_value + longitude + 
+               review_scores_communication + latitude, data = no_na)
+summary_Model2 <- summary(Model2)
+mse_2 <- summary_Model2$sigma^2
+r_sq_2 <-summary_Model2$r.squared
+adj_r_sq_2 <- summary_Model2$adj.r.squared
+summary_Model2
+
+pred <- predict(Model2, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
+
+
+
+
+null <- lm(price~1, data = no_na)
+full <- lm(price ~ host_response_time + host_response_rate + host_acceptance_rate + host_is_superhost +
+             neighbourhood_cleansed + latitude + longitude + room_type + accommodates + bedrooms + beds + minimum_nights + 
+             maximum_nights + has_availability + availability_30 + availability_60 + availability_90 + availability_365 +
+             review_scores_rating + review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication +
+             review_scores_location + review_scores_value + reviews_per_month, data = no_na)
+step(null, scope =list(lower=null, upper= full), direction = "both", k = log(n[1]))
+n=dim(no_na[1])
+n[1]
+Model3 <- lm(formula = price ~ accommodates + room_type + bedrooms + review_scores_location + 
+               reviews_per_month + review_scores_communication + host_acceptance_rate + 
+               availability_365 + review_scores_rating + review_scores_value, 
+             data = no_na)
+summary_Model3 <- summary(Model3)
+mse_3 <- summary_Model3$sigma^2
+r_sq_3 <- summary_Model3$r.squared
+adj_r_sq_3 <- summary_Model3$adj.r.squared
+summary_Model3
+
+pred <- predict(Model3, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
+
+
+
+
+pred <- predict(Model1, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
+
+#pi is a vector that contains predicted values for test set.
+pi <- predict(object = Model1, newdata = test)
+mean((pi - test$price)^2)
+mean(abs(pi - test$price))
+
+
+
+
+
+
+hyper_grid <- expand.grid(
+  minsplit = seq(5, 50, 5),
+  maxdepth = seq(5, 30, 5)
+)
+
+models <- list()
+
+for (i in 1:nrow(hyper_grid)) {
+  
+  # get minsplit, maxdepth values at row i
+  minsplit <- hyper_grid$minsplit[i]
+  maxdepth <- hyper_grid$maxdepth[i]
+  
+  # train a model and store in the list
+  models[[i]] <- rpart(
+    formula = price ~ host_response_time + host_response_rate + host_acceptance_rate + host_is_superhost +
+      neighbourhood_cleansed + latitude + longitude + room_type + accommodates + bedrooms + beds + minimum_nights + 
+      maximum_nights + has_availability + availability_30 + availability_60 + availability_90 + availability_365 +
+      review_scores_rating + review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication +
+      review_scores_location + review_scores_value + reviews_per_month, data = train,
+    method  = "anova",
+    control = list(minsplit = minsplit, maxdepth = maxdepth)
+  )
+}
+
+
+# function to get optimal cp
+get_cp <- function(x) {
+  min    <- which.min(x$cptable[, "xerror"])
+  cp <- x$cptable[min, "CP"] 
+}
+
+# function to get minimum error
+get_min_error <- function(x) {
+  min    <- which.min(x$cptable[, "xerror"])
+  xerror <- x$cptable[min, "xerror"] 
+}
+
+hyper_grid %>%
+  mutate(
+    cp    = purrr::map_dbl(models, get_cp),
+    error = purrr::map_dbl(models, get_min_error)
+  ) %>%
+  arrange(error) %>%
+  top_n(-5, wt = error)
+
+optimal_tree <- rpart(
+  formula = price ~ host_response_time + host_response_rate + host_acceptance_rate + host_is_superhost +
+    latitude + longitude + room_type + accommodates + bedrooms + beds + minimum_nights + 
+    maximum_nights + has_availability + availability_30 + availability_60 + availability_90 + availability_365 +
+    review_scores_rating + review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication +
+    review_scores_location + review_scores_value + reviews_per_month,
+  data = train,
+  method  = "anova",
+  control = list(minsplit = 40, maxdepth = 25, cp = 0.01)
+)
+
+rpart.plot(optimal_tree)
+
+library(Metrics)
+
+pred <- predict(optimal_tree, newdata = no_na_test)
+rmse(pred, no_na_test$price)
+mape(pred, no_na_test$price)
 
 
 
